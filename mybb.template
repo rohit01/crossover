@@ -159,7 +159,7 @@
 "git clone https://github.com/rohit01/crossover.git                                                                                                          \n",
 "cd crossover/                                                                                                                                               \n",
 "bash ./install_mybb.sh ", { "Ref" : "DBName" }, " ", { "Ref" : "MyBbTablePrefix" }, " ", { "Fn::GetAtt" : ["DB", "Endpoint.Address"] }, " ", 
-{ "Ref" : "DBUser" }," ", { "Ref" : "DBPassword" }, "                                                                                                        \n",
+{ "Ref" : "DBUser" }," ", { "Ref" : "DBPassword" }, " ", { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ] }, "                                          \n",
 "rm /var/www/html/index.html                                                                                                                                 \n",
 "cp -r mybb/* /var/www/html/                                                                                                                                 \n",
 "cd /usr/src/                                                                                                                                                \n",

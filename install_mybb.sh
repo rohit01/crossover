@@ -11,6 +11,7 @@ DB_TABLE_PREFIX="${2}"
 DB_HOSTNAME="${3}"
 DB_USER="${4}"
 DB_PASSWORD="${5}"
+MYBB_URL="${6}"
 
 sed -i "s/REPLACE_WITH_DATABASE/${DATABASE}/g" ./inc/config.php
 sed -i "s/REPLACE_WITH_DB_TABLE_PREFIX/${DB_TABLE_PREFIX}/g" ./inc/config.php
@@ -29,4 +30,5 @@ chmod 777 ./uploads/avatars/
 chmod 777 ./admin/backups/ 
 
 cd "${SCRIPT_DIR}/"
+sed -i "s/REPLACE_WITH_MYBB_URL/${MYBB_URL}/g" ./mybb_initdb.sql
 mysql -u "${DB_USER}" -h "${DB_HOSTNAME}" -p"${DB_PASSWORD}" "${DATABASE}" < mybb_initdb.sql 2>/dev/null || echo "DB already initialized. Ignoring import errors"
