@@ -1,0 +1,7 @@
+.DS_Store
+*~
+*.swp
+
+# Ignore settings files that need to be generated
+mybb/inc/settings.php
+mybb/inc/config.php
