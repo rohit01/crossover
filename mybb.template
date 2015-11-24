@@ -5,12 +5,14 @@
 
   "Parameters" : {
     "InstanceType" : {
-      "Description" : "Type of EC2 instance to launch",
+      "Description" : "Type of EC2 instance to launch for WebServers",
       "Type" : "String",
       "Default" : "t2.micro",
       "AllowedValues" : [ "t2.micro", "t2.small", "t2.medium", "t2.large", "m4.large", "m4.xlarge", "m4.2xlarge", "m4.4xlarge", "m4.10xlarge", "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge", "c4.large", "c4.xlarge", "c4.2xlarge", "c4.4xlarge", "c4.8xlarge", "c3.large", "c3.xlarge", "c3.2xlarge", "c3.4xlarge", "c3.8xlarge", "r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge", "r3.8xlarge" ],
       "ConstraintDescription" : "must be a valid EC2 instance type"
     },
+
+
     "KeyName" : {
       "Description" : "The name of an existing EC2 KeyPair enabling allow SSH access to the instance",
       "Type" : "String"
@@ -142,16 +144,16 @@
 "# Helper function                                                                                                                                           \n",
 "function error_exit                                                                                                                                         \n",
 "{                                                                                                                                                           \n",
-"    /opt/aws/bin/cfn-signal -e 1 -r \"$1\"                                                                                                                  \n",
+"    cfn-signal -e 1 -r \"$1\"                                                                                                                               \n",
 "    exit 1                                                                                                                                                  \n",
 "}                                                                                                                                                           \n",
 "# Install packages and configure MyBB                                                                                                                       \n",
-"/opt/aws/bin/cfn-init -s '", { "Ref" : "AWS::StackId" }, "' -r WebServer --region '", { "Ref" : "AWS::Region" }, "' || error_exit 'Failed to run cfn-init'  \n",
+"cfn-init -s '", { "Ref" : "AWS::StackId" }, "' -r LaunchConfig --region '", { "Ref" : "AWS::Region" }, "' || error_exit 'Failed to run cfn-init'            \n",
 "                                                                                                                                                            \n",
 "# Configure the MyBB application.. - TODO                                                                                                                   \n",
 "                                                                                                                                                            \n",
 "# All is well so signal success                                                                                                                             \n",
-"/opt/aws/bin/cfn-signal -e 0 -r \"MyBB setup complete\"                                                                                                     \n",
+"cfn-signal -e 0 -r \"MyBB setup complete\"                                                                                                                  \n",
 "                                                                                                                                                            \n"
 
                          ]]}
@@ -172,10 +174,6 @@
 
             "services" : {
               "sysvinit" : {  
-                "mysql" : {
-                  "enabled"       : "true",
-                  "ensureRunning" : "true"
-                },
                 "apache2" : {
                   "enabled"       : "true",
                   "ensureRunning" : "true"
