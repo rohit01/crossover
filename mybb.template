@@ -162,6 +162,8 @@
 { "Ref" : "DBUser" }," ", { "Ref" : "DBPassword" }, "                                                                                                        \n",
 "rm /var/www/html/index.html                                                                                                                                 \n",
 "cp -r mybb/* /var/www/html/                                                                                                                                 \n",
+"cd /usr/src/                                                                                                                                                \n",
+"rm -rf crossover/                                                                                                                                            \n",
 "                                                                                                                                                            \n",
 "# All is well so signal success                                                                                                                             \n",
 "cfn-signal -e 0 -r \"MyBB setup complete\"                                                                                                                  \n",
@@ -180,7 +182,8 @@
                 "php5-cli"             : [],
                 "apache2"              : [],
                 "php5-mysql"           : [],
-                "git-core"             : []
+                "git-core"             : [],
+                "mysql-client"         : []
               }
             },
 
