@@ -151,6 +151,10 @@
 "cfn-init -s '", { "Ref" : "AWS::StackId" }, "' -r LaunchConfig --region '", { "Ref" : "AWS::Region" }, "' || error_exit 'Failed to run cfn-init'            \n",
 "                                                                                                                                                            \n",
 "# Configure the MyBB application.. - TODO                                                                                                                   \n",
+"cd /usr/src/                                                                                                                                                \n",
+"git clone https://github.com/rohit01/crossover.git                                                                                                          \n",
+"cd crossover/                                                                                                                                               \n",
+"bash ./install_mybb.sh                                                                                                                                      \n",
 "                                                                                                                                                            \n",
 "# All is well so signal success                                                                                                                             \n",
 "cfn-signal -e 0 -r \"MyBB setup complete\"                                                                                                                  \n",
@@ -168,7 +172,8 @@
                 "libapache2-mod-php5"  : [],
                 "php5-cli"             : [],
                 "apache2"              : [],
-                "php5-mysql"           : []
+                "php5-mysql"           : [],
+                "git-core"             : []
               }
             },
 
