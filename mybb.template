@@ -160,6 +160,8 @@
 "cd crossover/                                                                                                                                               \n",
 "bash ./install_mybb.sh ", { "Ref" : "DBName" }, " ", { "Ref" : "MyBbTablePrefix" }, " ", { "Fn::GetAtt" : ["DB", "Endpoint.Address"] }, " ", 
 { "Ref" : "DBUser" }," ", { "Ref" : "DBPassword" }, "                                                                                                        \n",
+"rm /var/www/html/index.html                                                                                                                                 \n",
+"cp -r mybb/* /var/www/html/                                                                                                                                 \n",
 "                                                                                                                                                            \n",
 "# All is well so signal success                                                                                                                             \n",
 "cfn-signal -e 0 -r \"MyBB setup complete\"                                                                                                                  \n",
