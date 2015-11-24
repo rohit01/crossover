@@ -11,9 +11,18 @@
       "AllowedValues" : [ "t2.micro", "t2.small", "t2.medium", "t2.large", "m4.large", "m4.xlarge", "m4.2xlarge", "m4.4xlarge", "m4.10xlarge", "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge", "c4.large", "c4.xlarge", "c4.2xlarge", "c4.4xlarge", "c4.8xlarge", "c3.large", "c3.xlarge", "c3.2xlarge", "c3.4xlarge", "c3.8xlarge", "r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge", "r3.8xlarge" ],
       "ConstraintDescription" : "must be a valid EC2 instance type"
     },
+    "WebServerCount" : {
+      "Description" : "Number of EC2 instances to launch (Desired initial capacity)",
+      "Type" : "Number",
+      "Default" : "2"
+    },
     "KeyName" : {
       "Description" : "The name of an existing EC2 KeyPair enabling allow SSH access to the instance",
-      "Type" : "String"
+      "Type" : "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
+      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
     },
     "DBName" : {
       "Description" : "Database name",
@@ -35,12 +44,32 @@
       "Type" : "String",
       "NoEcho" : "true"
     },
+    "RDSInstanceType" : {
+      "Description" : "RDS instance type",
+      "Type" : "String",
+      "Default" : "db.t2.micro",
+      "AllowedValues" : ["db.t2.micro", "db.t2.small", "db.t2.medium", "db.t2.large", "db.r3.large", "db.r3.xlarge", "db.r3.2xlarge", "db.r3.4xlarge", "db.r3.8xlarge", "db.m4.large", "db.m4.xlarge", "db.m4.2xlarge", "db.m4.4xlarge", "db.m4.10xlarge", "db.m3.medium", "db.m3.large", "db.m3.xlarge", "db.m3.2xlarge"],
+      "ConstraintDescription" : "must be a valid EC2 instance type"
+    },
+    "RDSDBSize" : {
+      "Description" : "RDS Database Size (in GB)",
+      "Type" : "Number",
+      "Default" : "5"
+    },
     "OperatorEmail" : {
       "Description" : "Email address to notify if there are any operational issues",
       "Type" : "String",
       "Default" : "hello@rohit.io"
     },
-
+    "SSHLocation" : {
+      "Description" : "SSH whitelisting CIDR block (default can be accessed from anywhere)",
+      "Type" : "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default" : "0.0.0.0/0",
+      "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
+    },
     "MyBbTablePrefix" : {
       "Description" : "MyBB table prefix (leave unchanged, if unsure)",
       "Type" : "String",
@@ -98,26 +127,179 @@
       "eu-west-1"      : { "RDSMultiAZ" : "true" },
       "ap-southeast-1" : { "RDSMultiAZ" : "true" },
       "ap-northeast-1" : { "RDSMultiAZ" : "true" }
+    },
+    "SubnetConfig" : {
+      "VPC"     : { "CIDR" : "10.0.0.0/16" },
+      "Public"  : { "CIDR" : "10.0.0.0/24" },
+      "RDS1"  : { "CIDR" : "10.0.10.0/24" },
+      "RDS2"  : { "CIDR" : "10.0.11.0/24" }
     }
   },
 
   "Resources" : {
-    "ElasticLoadBalancer" : {
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
+        "EnableDnsSupport" : "true",
+        "EnableDnsHostnames" : "true",
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" }
+        ]
+      }
+    },
+    "PublicSubnet" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "Public", "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" }
+        ]
+      }
+    },
+    "RDSSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Fn::Join" : [ "", [ { "Ref" : "AWS::Region" }, "a" ] ] },
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "RDS1", "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "RDS1" }
+        ]
+      }
+    },
+    "RDSSubnet2" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Fn::Join" : [ "", [ { "Ref" : "AWS::Region" }, "b" ] ] },
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "RDS2", "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "RDS2" }
+        ]
+      }
+    },
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" }
+        ]
+      }
+    },
+    "GatewayToInternet" : {
+       "Type" : "AWS::EC2::VPCGatewayAttachment",
+       "Properties" : {
+         "VpcId" : { "Ref" : "VPC" },
+         "InternetGatewayId" : { "Ref" : "InternetGateway" }
+       }
+    },
+    "PublicRouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" }
+        ]
+      }
+    },
+    "PublicRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "GatewayToInternet",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PublicRouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : { "Ref" : "InternetGateway" }
+      }
+    },
+    "PublicSubnetRouteTableAssociation" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable" }
+      }
+    },
+    "PublicNetworkAcl" : {
+      "Type" : "AWS::EC2::NetworkAcl",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" }
+        ]
+      }
+    },
+    "InboundHTTPPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "100",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : { "From" : "80", "To" : "80" }
+      }
+    },
+    "InboundDynamicPortPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "101",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : { "From" : "1024", "To" : "65535" }
+      }
+    },
+    "InboundSSHPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "102",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : { "Ref" : "SSHLocation" },
+        "PortRange" : { "From" : "22", "To" : "22" }
+      }
+    },
+    "OutboundPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "100",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "true",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : { "From" : "0", "To" : "65535" }
+      }
+    },
+    "PublicSubnetNetworkAclAssociation" : {
+      "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet" },
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" }
+      }
+    },
+
+    "PublicElasticLoadBalancer" : {
       "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
       "Properties" : {
-        "AvailabilityZones" : { "Fn::GetAZs" : "" },
-        "LBCookieStickinessPolicy" : [ {
-          "PolicyName" : "CookieBasedPolicy",
-          "CookieExpirationPeriod" : "30"
-        } ],
-        "Listeners" : [ {
-          "LoadBalancerPort" : "80",
-          "InstancePort" : "80",
-          "Protocol" : "HTTP",
-          "PolicyNames" : [ "CookieBasedPolicy" ]
-        } ],
+        "SecurityGroups" : [ { "Ref" : "PublicLoadBalancerSecurityGroup" } ],
+        "Subnets" : [ { "Ref" : "PublicSubnet" } ],
+        "Listeners" : [ { "LoadBalancerPort" : "80", "InstancePort" : "80", "Protocol" : "HTTP" } ],
         "HealthCheck" : {
-          "Target" : { "Fn::Join" : [ "", [ "HTTP:", "80", "/" ] ] },
+          "Target" : "HTTP:80/",
           "HealthyThreshold" : "3",
           "UnhealthyThreshold" : "5",
           "Interval" : "20",
@@ -125,12 +307,21 @@
         }
       }
     },
-
+    "PublicLoadBalancerSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Public ELB Security Group with HTTP access on port 80 from the internet",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [ { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"} ],
+        "SecurityGroupEgress" : [ { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"} ]
+      }
+    },
     "LaunchConfig" : {
       "Type" : "AWS::AutoScaling::LaunchConfiguration",
       "Properties" : {
         "KeyName" : { "Ref" : "KeyName" },
         "InstanceType" : { "Ref" : "InstanceType" },
+        "AssociatePublicIpAddress" : "true",
         "SecurityGroups" : [{ "Ref" : "Ec2SecurityGroup" }],
         "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
         "UserData" : { "Fn::Base64" :
@@ -159,7 +350,7 @@
 "git clone https://github.com/rohit01/crossover.git                                                                                                          \n",
 "cd crossover/                                                                                                                                               \n",
 "bash ./install_mybb.sh ", { "Ref" : "DBName" }, " ", { "Ref" : "MyBbTablePrefix" }, " ", { "Fn::GetAtt" : ["DB", "Endpoint.Address"] }, " ", 
-{ "Ref" : "DBUser" }," ", { "Ref" : "DBPassword" }, " ", { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ] }, "                                          \n",
+{ "Ref" : "DBUser" }," ", { "Ref" : "DBPassword" }, " ", { "Fn::GetAtt" : [ "PublicElasticLoadBalancer", "DNSName" ] }, "                                          \n",
 "rm /var/www/html/index.html                                                                                                                                 \n",
 "cp -r mybb/* /var/www/html/                                                                                                                                 \n",
 "cd /usr/src/                                                                                                                                                \n",
@@ -203,29 +394,25 @@
     "WebServerGroup" : {
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "Properties" : {
-        "AvailabilityZones" : { "Fn::GetAZs" : "" },
+        "AvailabilityZones" : [{ "Fn::GetAtt" : [ "PublicSubnet", "AvailabilityZone" ] }],
+        "VPCZoneIdentifier" : [{ "Ref" : "PublicSubnet" }],
         "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
         "MinSize" : "2",
         "MaxSize" : "10",
-        "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ]
+        "LoadBalancerNames" : [ { "Ref" : "PublicElasticLoadBalancer" } ],
+        "DesiredCapacity" : { "Ref" : "WebServerCount" },
+        "Tags" : [ { "Key" : "Network", "Value" : "Public", "PropagateAtLaunch" : "true" } ]
       }
     },
 
     "Ec2SecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
       "Properties" : {
-        "GroupDescription" : "HTTP and SSH access",
-        "SecurityGroupIngress" : [ {
-          "IpProtocol" : "tcp", 
-          "FromPort" : "22",
-          "ToPort" : "22", 
-          "CidrIp" : "0.0.0.0/0"
-        },{
-          "IpProtocol" : "tcp", 
-          "FromPort" : "80",
-          "ToPort" : "80", 
-          "CidrIp" : "0.0.0.0/0"
-        } ]
+        "GroupDescription" : "Allow access from load balancer, and outbound HTTP and HTTPS traffic",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "SourceSecurityGroupId" : { "Ref" : "PublicLoadBalancerSecurityGroup" } } ,
+          { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : { "Ref" : "SSHLocation" } } ]
       }
     },
 
@@ -233,24 +420,36 @@
       "Type" : "AWS::RDS::DBSecurityGroup", 
       "Properties" : {
         "GroupDescription" : "Database Access",
+        "EC2VpcId" : { "Ref" : "VPC" },
         "DBSecurityGroupIngress" : {
-          "EC2SecurityGroupName" : { "Ref" : "Ec2SecurityGroup" } 
+          "EC2SecurityGroupId" : { "Ref" : "Ec2SecurityGroup" } 
         }
+      }
+    },
+    "RDSDBSubnetGroup" : {
+      "Type" : "AWS::RDS::DBSubnetGroup",
+      "Properties" : {
+        "DBSubnetGroupDescription" : "Subnets available for the RDS DB Instance",
+        "SubnetIds" : [ { "Ref" : "RDSSubnet1" }, { "Ref" : "RDSSubnet2" } ]
       }
     },
 
     "DB" : { 
       "Type" : "AWS::RDS::DBInstance", 
       "Properties" : {
-        "AllocatedStorage" : "5", 
-        "DBInstanceClass" : "db.m1.small",
+        "AllocatedStorage" : { "Ref" : "RDSDBSize" },
+        "DBInstanceClass" : { "Ref" : "RDSInstanceType" },
         "MasterUsername" : { "Ref" : "DBUser" }, 
         "MasterUserPassword" : { "Ref" : "DBPassword" }, 
         "DBName" : { "Ref" : "DBName" },
+
+        "DBSubnetGroupName" : { "Ref" : "RDSDBSubnetGroup" },
+
         "DBSecurityGroups" : [ { "Ref" : "DBSecurityGroup" } ], 
         "Port" : { "Ref" : "DBPort" },
         "MultiAZ" : { "Fn::FindInMap" : [ "AWSRegionCapabilities", { "Ref" : "AWS::Region" }, "RDSMultiAZ"] },
-        "Engine" : "MySQL" 
+        "Engine" : "MySQL" ,
+        "VPCSecurityGroups" : [ { "Ref" : "VPC" } ]
       }
     },
 
@@ -299,7 +498,7 @@
         "ComparisonOperator" : "GreaterThanThreshold",
         "Dimensions" : [ {
           "Name" : "LoadBalancerName",
-          "Value" : { "Ref" : "ElasticLoadBalancer" }
+          "Value" : { "Ref" : "PublicElasticLoadBalancer" }
         } ]
       }
     },
@@ -319,7 +518,7 @@
         "ComparisonOperator" : "GreaterThanThreshold",
         "Dimensions" : [ {
           "Name" : "LoadBalancerName",
-          "Value" : { "Ref" : "ElasticLoadBalancer" }
+          "Value" : { "Ref" : "PublicElasticLoadBalancer" }
         } ]
       }
     }
@@ -328,7 +527,7 @@
   "Outputs" : {
     "URL" : {
       "Description" : "URL for the MyBB website",
-      "Value" : { "Fn::Join" : [ "", [ "http://", { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ] }, "/" ] ] }
+      "Value" : { "Fn::Join" : [ "", [ "http://", { "Fn::GetAtt" : [ "PublicElasticLoadBalancer", "DNSName" ] }, "/" ] ] }
     }
   }
 }
